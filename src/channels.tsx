@@ -1,0 +1,126 @@
+import { Action, ActionPanel, Icon, List } from "@raycast/api";
+import { Shortcut } from "@raycast/api/types/api/app/keyboard";
+import fetch from "node-fetch";
+import { useQuery } from "./lib/api";
+import { getPreferences } from "./lib/preferences";
+
+interface SearchResult {
+  channelId: string;
+  channelName: string;
+}
+
+export default function Command() {
+  const { isLoading, results, search } = useSearch();
+
+  return (
+    <List isLoading={isLoading} onSearchTextChange={search} searchBarPlaceholder="Search channels..." throttle>
+      <List.Section title="Channels" subtitle={results.length + ""}>
+        {results.map((searchResult) => (
+          <SearchListItem key={searchResult.channelId} result={searchResult} />
+        ))}
+      </List.Section>
+    </List>
+  );
+}
+
+function SearchListItem({ result }: { result: SearchResult }) {
+  return (
+    <List.Item
+      title={result.channelName}
+      subtitle={result.channelId}
+      icon={Icon.Circle}
+      actions={
+        <ActionPanel>
+          <OpenActions channelId={result.channelId} secondaryShortcut={{ modifiers: ["cmd"], key: "enter" }} />
+        </ActionPanel>
+      }
+    />
+  );
+}
+
+function OpenActions({
+  channelId,
+  primaryShortcut,
+  secondaryShortcut,
+}: {
+  channelId: string;
+  primaryShortcut?: Shortcut;
+  secondaryShortcut?: Shortcut;
+}) {
+  const { preferYouTube } = getPreferences();
+
+  const Holodex = ({ shortcut }: { shortcut?: Shortcut }) => (
+    <Action.OpenInBrowser
+      title="Open in Holodex"
+      url={`https://holodex.net/channel/${channelId}`}
+      icon={{ source: "holodex.png" }}
+      shortcut={shortcut}
+    />
+  );
+
+  const YouTube = ({ shortcut }: { shortcut?: Shortcut }) => (
+    <Action.OpenInBrowser
+      title="Open in YouTube"
+      url={`https://www.youtube.com/channel/${channelId}`}
+      icon={{ source: "yt.png" }}
+      shortcut={shortcut}
+    />
+  );
+
+  return (
+    <ActionPanel.Section>
+      {preferYouTube ? (
+        <>
+          <YouTube shortcut={primaryShortcut} />
+          <Holodex shortcut={secondaryShortcut} />
+        </>
+      ) : (
+        <>
+          <Holodex shortcut={primaryShortcut} />
+          <YouTube shortcut={secondaryShortcut} />
+        </>
+      )}
+    </ActionPanel.Section>
+  );
+}
+
+function useSearch() {
+  const {
+    state: { isLoading, results },
+    perform: search,
+  } = useQuery(({ signal, args }: { signal: AbortSignal; args?: string }) => {
+    return performSearch(signal, args);
+  });
+
+  return {
+    isLoading,
+    search,
+    results: results || [],
+  };
+}
+
+async function performSearch(signal: AbortSignal, query?: string): Promise<SearchResult[]> {
+  if (!query || query.length === 0) return [];
+
+  const { apiKey } = getPreferences();
+
+  const params = new URLSearchParams({
+    q: query,
+  });
+
+  const response = (await fetch("https://holodex.net/api/v2/search/autocomplete?" + params.toString(), {
+    headers: {
+      "X-API-KEY": apiKey,
+    },
+    signal,
+  }).then((res) => res.json())) as { type: string; value: string; text: string }[];
+
+  return response
+    .filter((item) => item.type === "channel")
+    .map((item) => {
+      return {
+        channelId: item.value,
+        channelName: item.text,
+      };
+    });
+}
