@@ -1,15 +1,15 @@
 import { environment, showToast, Toast } from "@raycast/api";
 import fetch, { AbortError } from "node-fetch";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getPreferences } from "./preferences";
 
-type Fetcher<A, R> = (args: { signal: AbortSignal; args?: A }) => Promise<R>;
+type Fetcher<R> = (signal: AbortSignal) => Promise<R>;
 
-export function useQuery<A, R>(fetcher: Fetcher<A, R>) {
-  const [state, setState] = useState<{ results: R | null; isLoading: boolean }>({ results: null, isLoading: true });
+export function useQuery<R>(fetcher: Fetcher<R>, deps: React.DependencyList = []) {
+  const [state, setState] = useState<{ data: R | null; isLoading: boolean }>({ data: null, isLoading: true });
   const cancelRef = useRef<AbortController | null>(null);
   const perform = useCallback(
-    async function perform(args?: A) {
+    async function perform() {
       cancelRef.current?.abort();
       cancelRef.current = new AbortController();
 
@@ -19,11 +19,11 @@ export function useQuery<A, R>(fetcher: Fetcher<A, R>) {
       }));
 
       try {
-        const results = await fetcher({ signal: cancelRef.current.signal, args });
+        const data = await fetcher(cancelRef.current.signal);
 
         setState((oldState) => ({
           ...oldState,
-          results,
+          data,
           isLoading: false,
         }));
       } catch (error) {
@@ -41,7 +41,7 @@ export function useQuery<A, R>(fetcher: Fetcher<A, R>) {
         showToast({ style: Toast.Style.Failure, title: "API request failed", message: String(error) });
       }
     },
-    [cancelRef, setState]
+    [cancelRef, setState, fetcher]
   );
 
   useEffect(() => {
@@ -50,11 +50,13 @@ export function useQuery<A, R>(fetcher: Fetcher<A, R>) {
     return () => {
       cancelRef.current?.abort();
     };
-  }, []);
+  }, deps);
+
+  const { isLoading, data } = state;
 
   return {
-    state,
-    perform,
+    isLoading,
+    data,
   };
 }
 

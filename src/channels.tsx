@@ -1,6 +1,7 @@
 import { Action, ActionPanel, Icon, List } from "@raycast/api";
 import { Shortcut } from "@raycast/api/types/api/app/keyboard";
 import fetch from "node-fetch";
+import { useCallback, useState } from "react";
 import { useQuery } from "./lib/api";
 import { getPreferences } from "./lib/preferences";
 
@@ -85,17 +86,18 @@ function OpenActions({
 }
 
 function useSearch() {
-  const {
-    state: { isLoading, results },
-    perform: search,
-  } = useQuery(({ signal, args }: { signal: AbortSignal; args?: string }) => {
-    return performSearch(signal, args);
-  });
+  const [query, setQuery] = useState<string>();
+
+  const { isLoading, data } = useQuery((signal) => performSearch(signal, query), [query]);
+
+  const search = useCallback((query: string) => {
+    setQuery(query);
+  }, []);
 
   return {
     isLoading,
     search,
-    results: results || [],
+    results: data || [],
   };
 }
 

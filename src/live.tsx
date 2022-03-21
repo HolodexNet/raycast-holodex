@@ -1,11 +1,12 @@
 import { Action, ActionPanel, Icon, Image, List } from "@raycast/api";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import numeral from "numeral";
+import { useState } from "react";
 import { Details } from "./components/Details";
 import { OpenActions } from "./components/OpenActions";
 import { apiRequest, useQuery } from "./lib/api";
 import { Live } from "./lib/interfaces";
-import { getPreferences } from "./lib/preferences";
+import { getPreferences, OrgDropdown } from "./lib/preferences";
 
 interface SearchResult {
   title: string;
@@ -22,10 +23,16 @@ interface SearchResult {
 }
 
 export default function Command() {
-  const { isLoading, results } = useSearch();
+  const { org: defaultOrg } = getPreferences();
+  const [org, setOrg] = useState<string>(defaultOrg);
+  const { isLoading, results } = useSearch(org);
+
+  function orgSelected(org: string) {
+    setOrg(org);
+  }
 
   return (
-    <List isLoading={isLoading}>
+    <List isLoading={isLoading} searchBarAccessory={<OrgDropdown onChange={orgSelected} />}>
       <List.Section title="Live Streams" subtitle={String(results.length)}>
         {results.map((searchResult) => (
           <Item key={searchResult.videoId} result={searchResult} />
@@ -93,22 +100,19 @@ function Item({ result }: { result: SearchResult }) {
   );
 }
 
-function useSearch() {
-  const {
-    state: { isLoading, results },
-    perform: search,
-  } = useQuery(({ signal }: { signal: AbortSignal }) => performLiveVideoSearch(signal));
+function useSearch(org: string) {
+  const { isLoading, data } = useQuery((signal) => performLiveVideoSearch(signal, org), [org]);
+
+  console.log("useSearch", org, isLoading, data?.length);
 
   return {
     isLoading,
-    search,
-    results: results || [],
+    results: data || [],
   };
 }
 
-async function performLiveVideoSearch(signal: AbortSignal): Promise<SearchResult[]> {
-  const { org } = getPreferences();
-
+async function performLiveVideoSearch(signal: AbortSignal, org: string): Promise<SearchResult[]> {
+  console.log("performLiveVideoSearch", org);
   const response = (await apiRequest("live", {
     params: {
       org,

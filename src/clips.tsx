@@ -1,9 +1,10 @@
 import { Action, ActionPanel, Image, List } from "@raycast/api";
+import { useState, useCallback } from "react";
 import { Details } from "./components/Details";
 import { OpenActions } from "./components/OpenActions";
 import { apiRequest, useQuery } from "./lib/api";
 import { Clip } from "./lib/interfaces";
-import { getPreferences } from "./lib/preferences";
+import { getPreferences, OrgDropdown } from "./lib/preferences";
 
 interface SearchResult {
   title: string;
@@ -21,10 +22,22 @@ interface SearchResult {
 }
 
 export default function Command() {
-  const { isLoading, results, search } = useSearch();
+  const { org: defaultOrg } = getPreferences();
+  const [org, setOrg] = useState<string>(defaultOrg);
+  const { isLoading, results, search } = useSearch(org);
+
+  function orgSelected(org: string) {
+    setOrg(org);
+  }
 
   return (
-    <List isLoading={isLoading} onSearchTextChange={search} searchBarPlaceholder="Search videos..." throttle>
+    <List
+      isLoading={isLoading}
+      onSearchTextChange={search}
+      searchBarPlaceholder="Search videos..."
+      throttle
+      searchBarAccessory={<OrgDropdown onChange={orgSelected} />}
+    >
       <List.Section title="Clips" subtitle={results.length + ""}>
         {results.map((searchResult) => (
           <Item key={searchResult.videoId} searchResult={searchResult} />
@@ -76,25 +89,26 @@ function Item({ searchResult }: { searchResult: SearchResult }) {
   );
 }
 
-function useSearch() {
-  const {
-    state: { isLoading, results },
-    perform: search,
-  } = useQuery(({ signal, args }: { signal: AbortSignal; args?: string }) => {
-    return performSearch(signal, args);
-  });
+function useSearch(org: string) {
+  const [query, setQuery] = useState<string>();
+
+  const { isLoading, data } = useQuery((signal) => performSearch(signal, org, query), [org, query]);
+
+  const search = useCallback((query: string) => {
+    setQuery(query);
+  }, []);
 
   return {
     isLoading,
     search,
-    results: results || [],
+    results: data || [],
   };
 }
 
-async function performSearch(signal: AbortSignal, searchTerm?: string): Promise<SearchResult[]> {
-  const emptyQuery = !searchTerm || searchTerm.length === 0;
+async function performSearch(signal: AbortSignal, org: string, query?: string): Promise<SearchResult[]> {
+  const emptyQuery = !query || query.length === 0;
 
-  const { org, language } = getPreferences();
+  const { language } = getPreferences();
   const languageList = language.split(",").map((ln) => ln.trim());
 
   const response = (
@@ -118,7 +132,7 @@ async function performSearch(signal: AbortSignal, searchTerm?: string): Promise<
             sort: "newest",
             include: "description",
             limit: 30,
-            conditions: [{ text: searchTerm }],
+            conditions: [{ text: query }],
           },
           signal,
         })

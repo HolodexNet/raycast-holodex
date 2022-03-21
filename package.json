@@ -50,8 +50,8 @@
       "name": "org",
       "type": "dropdown",
       "required": true,
-      "title": "Organization",
-      "description": "Only show selected organization",
+      "title": "Default Organization",
+      "description": "Default organization to use",
       "default": "All Vtubers",
       "data": [
         {
@@ -206,7 +206,7 @@
       "name": "preferYouTube",
       "type": "checkbox",
       "title": "Prefer YouTube",
-      "label": "YouTube as a primary link opener",
+      "label": "Set YouTube as a primary link opener",
       "description": "Prefer YouTube over Holodex as a link opener",
       "required": false,
       "default": false
