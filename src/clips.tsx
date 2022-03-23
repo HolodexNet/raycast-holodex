@@ -1,25 +1,11 @@
 import { Action, ActionPanel, Image, List } from "@raycast/api";
+import { formatDistanceToNow, parseISO } from "date-fns";
 import { useState, useCallback } from "react";
 import { Details } from "./components/Details";
-import { OpenActions } from "./components/OpenActions";
+import { Actions } from "./components/Actions";
 import { apiRequest, useQuery } from "./lib/api";
 import { Clip } from "./lib/interfaces";
 import { getPreferences, OrgDropdown } from "./lib/preferences";
-
-interface SearchResult {
-  title: string;
-  videoId: string;
-  videoType: string;
-  topic?: string;
-  description?: string;
-  scheduledStart: string;
-  status: string;
-  channelId: string;
-  channelName: string;
-  channelEnglishName?: string;
-  avatarUrl: string;
-  type: string;
-}
 
 export default function Command() {
   const { org: defaultOrg } = getPreferences();
@@ -40,21 +26,21 @@ export default function Command() {
     >
       <List.Section title="Clips" subtitle={results.length + ""}>
         {results.map((searchResult) => (
-          <Item key={searchResult.videoId} searchResult={searchResult} />
+          <Item key={searchResult.videoId} result={searchResult} />
         ))}
       </List.Section>
     </List>
   );
 }
 
-function Item({ searchResult }: { searchResult: SearchResult }) {
+function Item({ result }: { result: SearchResult }) {
   const { preferEnglishName } = getPreferences();
 
-  const channelName = searchResult[preferEnglishName ? "channelEnglishName" : "channelName"];
+  const channelName = result[preferEnglishName ? "channelEnglishName" : "channelName"];
 
-  const parts = [`${channelName}`];
+  const parts = [];
 
-  switch (searchResult.status) {
+  switch (result.status) {
     case "upcoming":
       parts.push("🔔");
       break;
@@ -63,26 +49,25 @@ function Item({ searchResult }: { searchResult: SearchResult }) {
       break;
   }
 
+  if (result.publishedAt) {
+    parts.push(formatDistanceToNow(result.publishedAt, { addSuffix: true }));
+  }
+
   return (
     <List.Item
-      title={searchResult.title}
-      // subtitle={searchResult.description}
+      title={result.title}
+      subtitle={channelName}
       accessoryTitle={parts.join(" ")}
-      icon={{ source: searchResult.avatarUrl, mask: Image.Mask.Circle }}
+      icon={{ source: result.avatarUrl, mask: Image.Mask.Circle }}
       actions={
-        <ActionPanel>
-          <ActionPanel.Section>
-            <Action.Push
-              title="Show Details"
-              target={<Details title={searchResult.title} videoId={searchResult.videoId} topic={searchResult.topic} />}
-            />
-            <Action.OpenInBrowser
-              title="Open Channel in Browser"
-              url={`https://www.youtube.com/channel/${searchResult.channelId}`}
-              shortcut={{ modifiers: ["cmd"], key: "." }}
-            />
-          </ActionPanel.Section>
-          <OpenActions videoId={searchResult.videoId} secondaryShortcut={{ modifiers: ["cmd"], key: "enter" }} />
+        <ActionPanel title={`Clip: ${result.videoId}`}>
+          <Actions
+            videoId={result.videoId}
+            channelId={result.channelId}
+            title={result.title}
+            description={result.description}
+            topic={result.topic}
+          />
         </ActionPanel>
       }
     />
@@ -115,24 +100,21 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
     emptyQuery
       ? await apiRequest("videos", {
           params: {
-            status: "past",
             type: "clip",
             include: "description",
-            lang: languageList,
-            org,
             limit: 30,
+            org,
+            lang: languageList,
           },
           signal,
         })
       : await apiRequest("search/videoSearch", {
           body: {
             target: ["clip"],
-            org: org === "All Vtubers" ? [] : [org],
-            lang: languageList,
-            sort: "newest",
-            include: "description",
             limit: 30,
+            org: org === "All Vtubers" ? [] : [org],
             conditions: [{ text: query }],
+            lang: languageList,
           },
           signal,
         })
@@ -143,7 +125,7 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
       videoId: video.id,
       title: video.title,
       videoType: video.type,
-      scheduledStart: video.published_at,
+      publishedAt: parseISO(video.published_at),
       description: video.description,
       status: video.status,
       channelId: video.channel.id,
@@ -153,4 +135,19 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
       type: video.type,
     };
   });
+}
+
+interface SearchResult {
+  title: string;
+  videoId: string;
+  videoType: string;
+  topic?: string;
+  description?: string;
+  publishedAt: Date;
+  status: string;
+  channelId: string;
+  channelName: string;
+  channelEnglishName?: string;
+  avatarUrl: string;
+  type: string;
 }

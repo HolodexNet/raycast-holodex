@@ -1,5 +1,8 @@
 import { Action, ActionPanel, Image, List } from "@raycast/api";
+import { formatDistanceToNow, parseISO } from "date-fns";
 import { useCallback, useState } from "react";
+import { Details } from "./components/Details";
+import { Actions } from "./components/Actions";
 import { apiRequest, useQuery } from "./lib/api";
 import { Archive } from "./lib/interfaces";
 import { getPreferences, OrgDropdown } from "./lib/preferences";
@@ -23,21 +26,21 @@ export default function Command() {
     >
       <List.Section title="Archives" subtitle={String(results.length)}>
         {results.map((searchResult) => (
-          <Item key={searchResult.videoId} searchResult={searchResult} />
+          <Item key={searchResult.videoId} result={searchResult} />
         ))}
       </List.Section>
     </List>
   );
 }
 
-function Item({ searchResult }: { searchResult: SearchResult }) {
+function Item({ result }: { result: SearchResult }) {
   const { preferEnglishName } = getPreferences();
 
-  const channelName = searchResult[preferEnglishName ? "channelEnglishName" : "channelName"];
+  const channelName = result[preferEnglishName ? "channelEnglishName" : "channelName"];
 
   const parts = [];
 
-  switch (searchResult.status) {
+  switch (result.status) {
     case "upcoming":
       parts.push("🔔");
       break;
@@ -46,29 +49,25 @@ function Item({ searchResult }: { searchResult: SearchResult }) {
       break;
   }
 
+  if (result.startAt) {
+    parts.push(formatDistanceToNow(result.startAt, { addSuffix: true }));
+  }
+
   return (
     <List.Item
-      title={searchResult.title}
+      title={result.title}
       subtitle={channelName}
       accessoryTitle={parts.join(" ")}
-      icon={{ source: searchResult.avatarUrl, mask: Image.Mask.Circle }}
+      icon={{ source: result.avatarUrl, mask: Image.Mask.Circle }}
       actions={
-        <ActionPanel>
-          <ActionPanel.Section>
-            <Action.OpenInBrowser title="Open in Holodex" url={`https://holodex.net/watch/${searchResult.videoId}`} />
-            <Action.OpenInBrowser
-              title="Open in YouTube"
-              url={`https://www.youtube.com/watch?v=${searchResult.videoId}`}
-              shortcut={{ modifiers: ["cmd"], key: "enter" }}
-            />
-          </ActionPanel.Section>
-          <ActionPanel.Section>
-            <Action.OpenInBrowser
-              title="Open Channel in Browser"
-              url={`https://www.youtube.com/channel/${searchResult.channelId}`}
-              shortcut={{ modifiers: ["cmd"], key: "." }}
-            />
-          </ActionPanel.Section>
+        <ActionPanel title={`Archive: ${result.videoId}`}>
+          <Actions
+            videoId={result.videoId}
+            channelId={result.channelId}
+            title={result.title}
+            description={result.description}
+            topic={result.topic}
+          />
         </ActionPanel>
       }
     />
@@ -98,22 +97,20 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
     emptyQuery
       ? await apiRequest("videos", {
           params: {
-            lang: "en",
-            org,
-            status: ["new", "past"],
-            limit: 30,
             type: "stream",
+            status: ["new", "past"],
+            include: "description",
+            limit: 30,
+            org,
           },
           signal,
         })
       : await apiRequest("search/videoSearch", {
           body: {
-            lang: ["en"],
-            org: org === "All Vtubers" ? [] : [org],
+            target: ["stream"],
             status: ["new", "past"],
             limit: 30,
-            sort: "newest",
-            target: ["stream"],
+            org: org === "All Vtubers" ? [] : [org],
             conditions: [{ text: query }],
           },
           signal,
@@ -125,7 +122,7 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
       videoId: video.id,
       title: video.title,
       videoType: video.type,
-      scheduledStart: video.published_at,
+      startAt: parseISO(video.available_at ?? video.published_at),
       topic: video.topic_id,
       description: video.description,
       status: video.status,
@@ -144,7 +141,7 @@ interface SearchResult {
   videoType: string;
   topic?: string;
   description: string;
-  scheduledStart: string;
+  startAt: Date;
   status: string;
   channelId: string;
   channelName: string;

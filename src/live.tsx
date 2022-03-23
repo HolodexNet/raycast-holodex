@@ -3,7 +3,7 @@ import { formatDistanceToNow, parseISO } from "date-fns";
 import numeral from "numeral";
 import { useState } from "react";
 import { Details } from "./components/Details";
-import { OpenActions } from "./components/OpenActions";
+import { Actions } from "./components/Actions";
 import { apiRequest, useQuery } from "./lib/api";
 import { Live } from "./lib/interfaces";
 import { getPreferences, OrgDropdown } from "./lib/preferences";
@@ -62,7 +62,7 @@ function Item({ result }: { result: SearchResult }) {
 
   const keywords = [result.channelName];
 
-  if (result.channelEnglishName) keywords.push(result.channelEnglishName);
+  if (result.channelEnglishName) keywords.push(...result.channelEnglishName.split(" "));
 
   return (
     <List.Item
@@ -73,26 +73,13 @@ function Item({ result }: { result: SearchResult }) {
       keywords={keywords}
       icon={result.avatarUrl ? { source: result.avatarUrl, mask: Image.Mask.Circle } : Icon.Person}
       actions={
-        <ActionPanel>
-          <ActionPanel.Section>
-            <Action.Push
-              title="Show Details"
-              target={
-                <Details
-                  title={result.title}
-                  description={result.description}
-                  videoId={result.videoId}
-                  topic={result.topic}
-                  liveViewers={result.liveViewers}
-                  startedAt={result.startAt}
-                />
-              }
-            />
-          </ActionPanel.Section>
-          <OpenActions
+        <ActionPanel title={`Live Stream: ${result.videoId}`}>
+          <Actions
             videoId={result.videoId}
-            primaryShortcut={{ modifiers: ["cmd"], key: "enter" }}
-            secondaryShortcut={{ modifiers: ["cmd"], key: "." }}
+            channelId={result.channelId}
+            title={result.title}
+            description={result.description}
+            topic={result.topic}
           />
         </ActionPanel>
       }
