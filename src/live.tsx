@@ -1,8 +1,7 @@
-import { Action, ActionPanel, Icon, Image, List } from "@raycast/api";
+import { ActionPanel, Icon, Image, List } from "@raycast/api";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import numeral from "numeral";
 import { useState } from "react";
-import { Details } from "./components/Details";
 import { Actions } from "./components/Actions";
 import { apiRequest, useQuery } from "./lib/api";
 import { Live } from "./lib/interfaces";
@@ -25,14 +24,16 @@ interface SearchResult {
 export default function Command() {
   const { org: defaultOrg } = getPreferences();
   const [org, setOrg] = useState<string>(defaultOrg);
+
   const { isLoading, results } = useSearch(org);
 
   function orgSelected(org: string) {
+    console.log("orgSelected", org);
     setOrg(org);
   }
 
   return (
-    <List isLoading={isLoading} searchBarAccessory={<OrgDropdown onChange={orgSelected} />}>
+    <List isLoading={isLoading} searchBarAccessory={<OrgDropdown defaultOrg={org} onChange={orgSelected} />}>
       <List.Section title="Live Streams" subtitle={String(results.length)}>
         {results.map((searchResult) => (
           <Item key={searchResult.videoId} result={searchResult} />
@@ -90,7 +91,7 @@ function Item({ result }: { result: SearchResult }) {
 function useSearch(org: string) {
   const { isLoading, data } = useQuery((signal) => performLiveVideoSearch(signal, org), [org]);
 
-  console.log("useSearch", org, isLoading, data?.length);
+  // console.log("useSearch", org, isLoading, data?.length);
 
   return {
     isLoading,

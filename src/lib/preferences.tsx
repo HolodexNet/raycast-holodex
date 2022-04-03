@@ -1,4 +1,5 @@
 import { getPreferenceValues, List } from "@raycast/api";
+import { useEffect, useState } from "react";
 
 export interface Preferences {
   apiKey: string;
@@ -12,11 +13,19 @@ export function getPreferences() {
   return getPreferenceValues<Preferences>();
 }
 
-export function OrgDropdown({ onChange }: { onChange: (value: string) => void }) {
-  const { org: defaultOrg } = getPreferences();
+export function OrgDropdown({ defaultOrg, onChange }: { defaultOrg: string; onChange: (value: string) => void }) {
+  const [org, setOrg] = useState<string>(defaultOrg);
+
+  function _onChange(val: string) {
+    setOrg(val);
+  }
+
+  useEffect(() => {
+    onChange(org);
+  }, [org]);
 
   return (
-    <List.Dropdown tooltip="Select Organization" defaultValue={defaultOrg} onChange={onChange}>
+    <List.Dropdown tooltip="Select Organization" defaultValue={defaultOrg} onChange={_onChange}>
       {orgs.map((org) => (
         <List.Dropdown.Item key={org.value} title={org.title} value={org.value} />
       ))}
