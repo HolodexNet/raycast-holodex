@@ -1,7 +1,6 @@
-import { Action, ActionPanel, Image, List } from "@raycast/api";
+import { ActionPanel, Image, List } from "@raycast/api";
 import { formatDistanceToNow, parseISO } from "date-fns";
-import { useState, useCallback } from "react";
-import { Details } from "./components/Details";
+import { useCallback, useState } from "react";
 import { Actions } from "./components/Actions";
 import { apiRequest, useQuery } from "./lib/api";
 import { Clip } from "./lib/interfaces";
@@ -10,6 +9,7 @@ import { getPreferences, OrgDropdown } from "./lib/preferences";
 export default function Command() {
   const { org: defaultOrg } = getPreferences();
   const [org, setOrg] = useState<string>(defaultOrg);
+
   const { isLoading, results, search } = useSearch(org);
 
   function orgSelected(org: string) {
@@ -22,7 +22,7 @@ export default function Command() {
       onSearchTextChange={search}
       searchBarPlaceholder="Search videos..."
       throttle
-      searchBarAccessory={<OrgDropdown onChange={orgSelected} />}
+      searchBarAccessory={<OrgDropdown defaultOrg={org} onChange={orgSelected} />}
     >
       <List.Section title="Clips" subtitle={results.length + ""}>
         {results.map((searchResult) => (

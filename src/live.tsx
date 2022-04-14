@@ -28,7 +28,6 @@ export default function Command() {
   const { isLoading, results } = useSearch(org);
 
   function orgSelected(org: string) {
-    console.log("orgSelected", org);
     setOrg(org);
   }
 
