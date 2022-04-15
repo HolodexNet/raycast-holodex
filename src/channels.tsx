@@ -1,5 +1,4 @@
-import { Action, ActionPanel, Icon, List } from "@raycast/api";
-import { Shortcut } from "@raycast/api/types/api/app/keyboard";
+import { Action, ActionPanel, Icon, Keyboard, List } from "@raycast/api";
 import fetch from "node-fetch";
 import { useCallback, useState } from "react";
 import { useQuery } from "./lib/api";
@@ -45,12 +44,12 @@ function OpenActions({
   secondaryShortcut,
 }: {
   channelId: string;
-  primaryShortcut?: Shortcut;
-  secondaryShortcut?: Shortcut;
+  primaryShortcut?: Keyboard.Shortcut;
+  secondaryShortcut?: Keyboard.Shortcut;
 }) {
   const { preferYouTube } = getPreferences();
 
-  const Holodex = ({ shortcut }: { shortcut?: Shortcut }) => (
+  const Holodex = ({ shortcut }: { shortcut?: Keyboard.Shortcut }) => (
     <Action.OpenInBrowser
       title="Open in Holodex"
       url={`https://holodex.net/channel/${channelId}`}
@@ -59,7 +58,7 @@ function OpenActions({
     />
   );
 
-  const YouTube = ({ shortcut }: { shortcut?: Shortcut }) => (
+  const YouTube = ({ shortcut }: { shortcut?: Keyboard.Shortcut }) => (
     <Action.OpenInBrowser
       title="Open in YouTube"
       url={`https://www.youtube.com/channel/${channelId}`}
@@ -69,19 +68,35 @@ function OpenActions({
   );
 
   return (
-    <ActionPanel.Section>
-      {preferYouTube ? (
-        <>
-          <YouTube shortcut={primaryShortcut} />
-          <Holodex shortcut={secondaryShortcut} />
-        </>
-      ) : (
-        <>
-          <Holodex shortcut={primaryShortcut} />
-          <YouTube shortcut={secondaryShortcut} />
-        </>
-      )}
-    </ActionPanel.Section>
+    <>
+      <ActionPanel.Section>
+        {preferYouTube ? (
+          <>
+            <YouTube shortcut={primaryShortcut} />
+            <Holodex shortcut={secondaryShortcut} />
+          </>
+        ) : (
+          <>
+            <Holodex shortcut={primaryShortcut} />
+            <YouTube shortcut={secondaryShortcut} />
+          </>
+        )}
+      </ActionPanel.Section>
+      <ActionPanel.Section>
+        <Action.CopyToClipboard
+          content={channelId}
+          title="Copy Channel ID"
+          shortcut={{ key: "c", modifiers: ["cmd", "shift"] }}
+        />
+        <Action.CopyToClipboard
+          content={
+            preferYouTube ? `https://www.youtube.com/channel/${channelId}` : `https://holodex.net/channel/${channelId}`
+          }
+          title="Copy Channel URL"
+          shortcut={{ key: "c", modifiers: ["cmd", "ctrl"] }}
+        />
+      </ActionPanel.Section>
+    </>
   );
 }
 

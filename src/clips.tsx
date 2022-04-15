@@ -2,8 +2,9 @@ import { ActionPanel, Image, List } from "@raycast/api";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { useCallback, useState } from "react";
 import { Actions } from "./components/Actions";
+import { DetailView } from "./components/Details";
 import { apiRequest, useQuery } from "./lib/api";
-import { Clip } from "./lib/interfaces";
+import { Clip, Video } from "./lib/interfaces";
 import { getPreferences, OrgDropdown } from "./lib/preferences";
 
 export default function Command() {
@@ -23,24 +24,21 @@ export default function Command() {
       searchBarPlaceholder="Search videos..."
       throttle
       searchBarAccessory={<OrgDropdown defaultOrg={org} onChange={orgSelected} />}
+      isShowingDetail
     >
       <List.Section title="Clips" subtitle={results.length + ""}>
-        {results.map((searchResult) => (
-          <Item key={searchResult.videoId} result={searchResult} />
+        {results.map((video) => (
+          <Item key={video.videoId} video={video} />
         ))}
       </List.Section>
     </List>
   );
 }
 
-function Item({ result }: { result: SearchResult }) {
-  const { preferEnglishName } = getPreferences();
-
-  const channelName = result[preferEnglishName ? "channelEnglishName" : "channelName"];
-
+function Item({ video }: { video: Video }) {
   const parts = [];
 
-  switch (result.status) {
+  switch (video.status) {
     case "upcoming":
       parts.push("🔔");
       break;
@@ -49,25 +47,19 @@ function Item({ result }: { result: SearchResult }) {
       break;
   }
 
-  if (result.publishedAt) {
-    parts.push(formatDistanceToNow(result.publishedAt, { addSuffix: true }));
+  if (video.startAt) {
+    parts.push(formatDistanceToNow(video.startAt, { addSuffix: true }));
   }
 
   return (
     <List.Item
-      title={result.title}
-      subtitle={channelName}
-      accessoryTitle={parts.join(" ")}
-      icon={{ source: result.avatarUrl, mask: Image.Mask.Circle }}
+      title={video.channelName}
+      // accessoryTitle={parts.join(" ")}
+      icon={{ source: video.avatarUrl, mask: Image.Mask.Circle }}
+      detail={<DetailView {...video} />}
       actions={
-        <ActionPanel title={`Clip: ${result.videoId}`}>
-          <Actions
-            videoId={result.videoId}
-            channelId={result.channelId}
-            title={result.title}
-            description={result.description}
-            topic={result.topic}
-          />
+        <ActionPanel title={`Clip: ${video.videoId}`}>
+          <Actions video={video} isInDetail={true} />
         </ActionPanel>
       }
     />
@@ -90,7 +82,9 @@ function useSearch(org: string) {
   };
 }
 
-async function performSearch(signal: AbortSignal, org: string, query?: string): Promise<SearchResult[]> {
+async function performSearch(signal: AbortSignal, org: string, query?: string): Promise<Video[]> {
+  const { preferEnglishName } = getPreferences();
+
   const emptyQuery = !query || query.length === 0;
 
   const { language } = getPreferences();
@@ -101,8 +95,8 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
       ? await apiRequest("videos", {
           params: {
             type: "clip",
-            include: "description",
-            limit: 30,
+            include: ["description", "mentions"],
+            limit: 50,
             org,
             lang: languageList,
           },
@@ -111,7 +105,7 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
       : await apiRequest("search/videoSearch", {
           body: {
             target: ["clip"],
-            limit: 30,
+            limit: 50,
             org: org === "All Vtubers" ? [] : [org],
             conditions: [{ text: query }],
             lang: languageList,
@@ -121,33 +115,21 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
   ) as Clip[];
 
   return response.map((video) => {
+    console.log(video);
+    const channelName = (preferEnglishName && video.channel.english_name) || video.channel.name;
+
     return {
       videoId: video.id,
       title: video.title,
       videoType: video.type,
-      publishedAt: parseISO(video.published_at),
+      startAt: parseISO(video.published_at),
       description: video.description,
       status: video.status,
       channelId: video.channel.id,
-      channelName: video.channel.name,
-      channelEnglishName: video.channel.english_name ?? video.channel.name,
+      channelName,
       avatarUrl: video.channel.photo,
       type: video.type,
+      liveViewers: 0,
     };
   });
-}
-
-interface SearchResult {
-  title: string;
-  videoId: string;
-  videoType: string;
-  topic?: string;
-  description?: string;
-  publishedAt: Date;
-  status: string;
-  channelId: string;
-  channelName: string;
-  channelEnglishName?: string;
-  avatarUrl: string;
-  type: string;
 }

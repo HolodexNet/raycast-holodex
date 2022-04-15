@@ -3,23 +3,10 @@ import { formatDistanceToNow, parseISO } from "date-fns";
 import numeral from "numeral";
 import { useState } from "react";
 import { Actions } from "./components/Actions";
+import { DetailView } from "./components/Details";
 import { apiRequest, useQuery } from "./lib/api";
-import { Live } from "./lib/interfaces";
+import { Live, Video } from "./lib/interfaces";
 import { getPreferences, OrgDropdown } from "./lib/preferences";
-
-interface SearchResult {
-  title: string;
-  videoId: string;
-  topic?: string;
-  description: string;
-  startAt: Date;
-  liveViewers: number;
-  channelId: string;
-  channelName: string;
-  channelEnglishName?: string;
-  avatarUrl: string;
-  status: string;
-}
 
 export default function Command() {
   const { org: defaultOrg } = getPreferences();
@@ -32,55 +19,48 @@ export default function Command() {
   }
 
   return (
-    <List isLoading={isLoading} searchBarAccessory={<OrgDropdown defaultOrg={org} onChange={orgSelected} />}>
+    <List
+      isLoading={isLoading}
+      searchBarAccessory={<OrgDropdown defaultOrg={org} onChange={orgSelected} />}
+      isShowingDetail
+    >
       <List.Section title="Live Streams" subtitle={String(results.length)}>
-        {results.map((searchResult) => (
-          <Item key={searchResult.videoId} result={searchResult} />
+        {results.map((video) => (
+          <Item key={video.videoId} video={video} />
         ))}
       </List.Section>
     </List>
   );
 }
 
-function Item({ result }: { result: SearchResult }) {
-  const { preferEnglishName } = getPreferences();
-  const channelName = result[preferEnglishName ? "channelEnglishName" : "channelName"];
-
+function Item({ video }: { video: Video }) {
   let icon = Icon.Circle;
   let label = "";
 
-  if (result.status === "upcoming" && result.startAt) {
-    label = formatDistanceToNow(result.startAt, { addSuffix: true });
+  if (video.status === "upcoming" && video.startAt) {
+    label = formatDistanceToNow(video.startAt, { addSuffix: true });
     icon = Icon.Clock;
-  } else if (result.status === "live" && result.liveViewers) {
-    label = numeral(result.liveViewers).format("0a");
+  } else if (video.status === "live" && video.liveViewers) {
+    label = numeral(video.liveViewers).format("0a");
     icon = Icon.Binoculars;
-  } else if (result.topic === "membersonly") {
+  } else if (video.topic === "membersonly") {
     label = "Members-only";
     icon = Icon.Star;
   }
 
-  const keywords = [result.channelName];
-
-  if (result.channelEnglishName) keywords.push(...result.channelEnglishName.split(" "));
+  const keywords = video.title.replace(/[【】?]/g, " ").split(/\s+/);
 
   return (
     <List.Item
-      title={result.title}
-      subtitle={channelName}
+      title={video.channelName}
       accessoryTitle={label}
       accessoryIcon={icon}
       keywords={keywords}
-      icon={result.avatarUrl ? { source: result.avatarUrl, mask: Image.Mask.Circle } : Icon.Person}
+      icon={video.avatarUrl ? { source: video.avatarUrl, mask: Image.Mask.Circle } : Icon.Person}
+      detail={<DetailView {...video} />}
       actions={
-        <ActionPanel title={`Live Stream: ${result.videoId}`}>
-          <Actions
-            videoId={result.videoId}
-            channelId={result.channelId}
-            title={result.title}
-            description={result.description}
-            topic={result.topic}
-          />
+        <ActionPanel title={video.title}>
+          <Actions isInDetail={true} video={video} />
         </ActionPanel>
       }
     />
@@ -98,31 +78,33 @@ function useSearch(org: string) {
   };
 }
 
-async function performLiveVideoSearch(signal: AbortSignal, org: string): Promise<SearchResult[]> {
-  console.log("performLiveVideoSearch", org);
+async function performLiveVideoSearch(signal: AbortSignal, org: string): Promise<Video[]> {
+  const { preferEnglishName } = getPreferences();
+
   const response = (await apiRequest("live", {
     params: {
       org,
       limit: 100,
       type: "stream",
-      max_upcoming_hours: 1,
+      max_upcoming_hours: 2,
       include: "description",
     },
     signal,
   })) as Live[];
 
   return response
-    .map((video): SearchResult => {
+    .map((video): Video => {
+      const channelName = (preferEnglishName && video.channel.english_name) || video.channel.name;
+
       return {
-        title: video.title,
         videoId: video.id,
-        topic: video.topic_id,
+        channelId: video.channel.id,
+        channelName,
+        title: video.title,
         description: video.description,
         startAt: parseISO(video.start_actual ?? video.start_scheduled),
+        topic: video.topic_id,
         liveViewers: video.live_viewers ?? 0,
-        channelId: video.channel.id,
-        channelName: video.channel.name,
-        channelEnglishName: video.channel.english_name,
         avatarUrl: video.channel.photo,
         status: video.status,
       };

@@ -2,8 +2,9 @@ import { ActionPanel, Image, List } from "@raycast/api";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { useCallback, useState } from "react";
 import { Actions } from "./components/Actions";
+import { DetailView } from "./components/Details";
 import { apiRequest, useQuery } from "./lib/api";
-import { Archive } from "./lib/interfaces";
+import { Archive, Video } from "./lib/interfaces";
 import { getPreferences, OrgDropdown } from "./lib/preferences";
 
 export default function Command() {
@@ -23,51 +24,33 @@ export default function Command() {
       searchBarPlaceholder="Search videos..."
       throttle
       searchBarAccessory={<OrgDropdown defaultOrg={org} onChange={orgSelected} />}
+      isShowingDetail
     >
       <List.Section title="Archives" subtitle={String(results.length)}>
         {results.map((searchResult) => (
-          <Item key={searchResult.videoId} result={searchResult} />
+          <Item key={searchResult.videoId} video={searchResult} />
         ))}
       </List.Section>
     </List>
   );
 }
 
-function Item({ result }: { result: SearchResult }) {
-  const { preferEnglishName } = getPreferences();
-
-  const channelName = result[preferEnglishName ? "channelEnglishName" : "channelName"];
-
+function Item({ video }: { video: Video }) {
   const parts = [];
 
-  switch (result.status) {
-    case "upcoming":
-      parts.push("🔔");
-      break;
-    case "new":
-      parts.push("🆕");
-      break;
-  }
-
-  if (result.startAt) {
-    parts.push(formatDistanceToNow(result.startAt, { addSuffix: true }));
+  if (video.startAt) {
+    parts.push(formatDistanceToNow(video.startAt));
   }
 
   return (
     <List.Item
-      title={result.title}
-      subtitle={channelName}
-      accessoryTitle={parts.join(" ")}
-      icon={{ source: result.avatarUrl, mask: Image.Mask.Circle }}
+      title={video.channelName}
+      accessoryTitle={video.topic?.split("_").join(" ") ?? ""}
+      icon={{ source: video.avatarUrl, mask: Image.Mask.Circle }}
+      detail={<DetailView {...video} />}
       actions={
-        <ActionPanel title={`Archive: ${result.videoId}`}>
-          <Actions
-            videoId={result.videoId}
-            channelId={result.channelId}
-            title={result.title}
-            description={result.description}
-            topic={result.topic}
-          />
+        <ActionPanel title={`Archive: ${video.videoId}`}>
+          <Actions video={video} isInDetail={true} />
         </ActionPanel>
       }
     />
@@ -90,7 +73,9 @@ function useSearch(org: string) {
   };
 }
 
-async function performSearch(signal: AbortSignal, org: string, query?: string): Promise<SearchResult[]> {
+async function performSearch(signal: AbortSignal, org: string, query?: string): Promise<Video[]> {
+  const { preferEnglishName } = getPreferences();
+
   const emptyQuery = !query || query.length === 0;
 
   const response = (
@@ -98,9 +83,9 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
       ? await apiRequest("videos", {
           params: {
             type: "stream",
-            status: ["new", "past"],
             include: "description",
-            limit: 30,
+            status: ["new", "past"],
+            limit: 50,
             org,
           },
           signal,
@@ -109,7 +94,7 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
           body: {
             target: ["stream"],
             status: ["new", "past"],
-            limit: 30,
+            limit: 50,
             org: org === "All Vtubers" ? [] : [org],
             conditions: [{ text: query }],
           },
@@ -117,35 +102,24 @@ async function performSearch(signal: AbortSignal, org: string, query?: string): 
         })
   ) as Archive[];
 
-  return response.map((video) => {
-    return {
-      videoId: video.id,
-      title: video.title,
-      videoType: video.type,
-      startAt: parseISO(video.available_at ?? video.published_at),
-      topic: video.topic_id,
-      description: video.description,
-      status: video.status,
-      channelId: video.channel.id,
-      channelName: video.channel.name,
-      channelEnglishName: video.channel.english_name ?? video.channel.name,
-      avatarUrl: video.channel.photo,
-      type: video.type,
-    } as SearchResult;
-  });
-}
+  return response
+    .filter((video) => !["missing", "live"].includes(video.status))
+    .map((video) => {
+      const channelName = (preferEnglishName && video.channel.english_name) || video.channel.name;
 
-interface SearchResult {
-  title: string;
-  videoId: string;
-  videoType: string;
-  topic?: string;
-  description: string;
-  startAt: Date;
-  status: string;
-  channelId: string;
-  channelName: string;
-  channelEnglishName?: string;
-  avatarUrl: string;
-  type: string;
+      return {
+        videoId: video.id,
+        title: video.title,
+        videoType: video.type,
+        startAt: parseISO(video.available_at ?? video.published_at),
+        topic: video.topic_id,
+        description: video.description,
+        status: video.status,
+        channelId: video.channel.id,
+        channelName,
+        avatarUrl: video.channel.photo,
+        type: video.type,
+        liveViewers: 0,
+      } as Video;
+    });
 }

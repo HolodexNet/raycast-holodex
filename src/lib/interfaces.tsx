@@ -1,3 +1,16 @@
+export interface Video {
+  videoId: string;
+  channelId: string;
+  channelName: string;
+  title: string;
+  description: string;
+  startAt: Date;
+  avatarUrl: string;
+  status: string;
+  liveViewers: number;
+  topic?: string;
+}
+
 export interface Clip {
   id: string;
   title: string;
