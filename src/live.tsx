@@ -44,7 +44,7 @@ function Item({ video }: { video: Video }) {
     label = numeral(video.liveViewers).format("0a");
     icon = Icon.Binoculars;
   } else if (video.topic === "membersonly") {
-    label = "Members-only";
+    label = "Memgen";
     icon = Icon.Star;
   }
 
