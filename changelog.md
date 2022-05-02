@@ -1,5 +1,5 @@
 # Holodex Changelog
 
-## Added Holodex (2022-03-12)
+## Added Holodex (2022-05-02)
 
 Initial version code
