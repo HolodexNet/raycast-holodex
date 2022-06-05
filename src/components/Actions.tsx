@@ -86,6 +86,7 @@ export function Actions({ video, isInDetail = false }: { video: Video; isInDetai
           title="Copy Video URL"
           shortcut={{ key: "c", modifiers: ["cmd", "shift"] }}
         />
+        <Action.CopyToClipboard content={videoId} title="Copy Video ID" />
       </ActionPanel.Section>
       <ActionPanel.Section title={`Channel: ${channelName}`}>
         {preferYouTube ? (
@@ -104,6 +105,7 @@ export function Actions({ video, isInDetail = false }: { video: Video; isInDetai
           title="Copy Channel URL"
           shortcut={{ key: "c", modifiers: ["cmd", "ctrl"] }}
         />
+        <Action.CopyToClipboard content={channelId} title="Copy Channel ID" />
       </ActionPanel.Section>
     </>
   );
