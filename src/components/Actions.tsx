@@ -1,7 +1,8 @@
-import { Action, ActionPanel, getPreferenceValues, Icon, Keyboard, List } from "@raycast/api";
+import { Action, ActionPanel, Icon, Keyboard, List } from "@raycast/api";
 import { useMemo } from "react";
 import { ClipItem } from "../clips";
 import { Video } from "../lib/interfaces";
+import { getPreferences } from "../lib/preferences";
 import { Details } from "./Details";
 
 function RelatedClips({ title, clips }: { title: string; clips: Video[] }) {
@@ -19,8 +20,11 @@ function RelatedClips({ title, clips }: { title: string; clips: Video[] }) {
 export function Actions({ video, isInDetail = false }: { video: Video; isInDetail?: boolean }) {
   const { videoId, channelId, channelName } = video;
 
-  const prefs = getPreferenceValues();
-  const preferYouTube = prefs["prefer-youtube"];
+  const prefs = getPreferences();
+  const preferYouTube = prefs["preferYouTube"];
+  const externalVideoPlayer = prefs["externalVideoPlayer"];
+
+  const externalVideoPlayerActionEnabled = externalVideoPlayer !== "";
 
   const primaryShortcut = useMemo<Keyboard.Shortcut>(() => ({ modifiers: ["cmd"], key: "enter" }), []);
   const secondaryShortcut = useMemo<Keyboard.Shortcut>(() => ({ modifiers: ["cmd"], key: "." }), []);
@@ -66,13 +70,15 @@ export function Actions({ video, isInDetail = false }: { video: Video; isInDetai
             <YouTube shortcut={secondaryShortcut} />
           </>
         )}
-        <Action.Open
-          title="Open in IINA"
-          target={youtubeUrl}
-          application="IINA"
-          icon={{ fileIcon: "/Applications/IINA.app" }}
-          shortcut={{ modifiers: ["cmd"], key: "o" }}
-        />
+        {externalVideoPlayerActionEnabled && (
+          <Action.Open
+            title={`Open in ${externalVideoPlayer}`}
+            target={youtubeUrl}
+            application={externalVideoPlayer}
+            icon={{ fileIcon: `/Applications/${externalVideoPlayer}.app` }}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+          />
+        )}
         {video.clips && (
           <Action.Push
             title="Related Clips"

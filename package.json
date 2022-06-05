@@ -5,7 +5,9 @@
   "description": "Search live streams, archives, clips and channels in Holodex.",
   "icon": "holodex.png",
   "author": "uetchy",
-  "categories": ["Web"],
+  "categories": [
+    "Web"
+  ],
   "license": "MIT",
   "commands": [
     {
@@ -192,6 +194,32 @@
       "placeholder": "en,ja",
       "required": true,
       "default": "en"
+    },
+    {
+      "name": "externalVideoPlayer",
+      "type": "dropdown",
+      "title": "External Video Player",
+      "description": "Add this app to action menu",
+      "required": false,
+      "default": "",
+      "data": [
+        {
+          "title": "None",
+          "value": ""
+        },
+        {
+          "title": "IINA",
+          "value": "IINA"
+        },
+        {
+          "title": "mpv",
+          "value": "mpv"
+        },
+        {
+          "title": "VLC",
+          "value": "VLC"
+        }
+      ]
     },
     {
       "name": "preferEnglishName",
