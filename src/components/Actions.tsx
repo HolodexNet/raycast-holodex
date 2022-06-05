@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import { ClipItem } from "../clips";
 import { Video } from "../lib/interfaces";
 import { getPreferences } from "../lib/preferences";
-import { Details } from "./Details";
 
 function RelatedClips({ title, clips }: { title: string; clips: Video[] }) {
   return (
@@ -17,8 +16,8 @@ function RelatedClips({ title, clips }: { title: string; clips: Video[] }) {
   );
 }
 
-export function Actions({ video, isInDetail = false }: { video: Video; isInDetail?: boolean }) {
-  const { videoId, channelId, channelName } = video;
+export function Actions({ video }: { video: Video }) {
+  const { videoId, channelId, channelName, title, clips } = video;
 
   const prefs = getPreferences();
   const preferYouTube = prefs["preferYouTube"];
@@ -58,7 +57,6 @@ export function Actions({ video, isInDetail = false }: { video: Video; isInDetai
   return (
     <>
       <ActionPanel.Section>
-        {!isInDetail && <Action.Push title="Show Details" icon={Icon.TextDocument} target={<Details {...video} />} />}
         {preferYouTube ? (
           <>
             <YouTube shortcut={primaryShortcut} />
@@ -79,10 +77,10 @@ export function Actions({ video, isInDetail = false }: { video: Video; isInDetai
             shortcut={{ modifiers: ["cmd"], key: "o" }}
           />
         )}
-        {video.clips && (
+        {clips.length > 0 && (
           <Action.Push
             title="Related Clips"
-            target={<RelatedClips title={`Clips for ${video.title}`} clips={video.clips} />}
+            target={<RelatedClips title={`Clips for ${title}`} clips={clips} />}
             icon={Icon.MagnifyingGlass}
             shortcut={{ key: ".", modifiers: ["cmd", "shift"] }}
           />
