@@ -66,6 +66,13 @@ export function Actions({ video, isInDetail = false }: { video: Video; isInDetai
             <YouTube shortcut={secondaryShortcut} />
           </>
         )}
+        <Action.Open
+          title="Open in IINA"
+          target={youtubeUrl}
+          application="IINA"
+          icon={{ fileIcon: "/Applications/IINA.app" }}
+          shortcut={{ modifiers: ["cmd"], key: "o" }}
+        />
         {video.clips && (
           <Action.Push
             title="Related Clips"
